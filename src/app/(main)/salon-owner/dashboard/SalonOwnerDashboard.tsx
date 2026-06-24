@@ -182,7 +182,9 @@ export default function SalonOwnerDashboard() {
   const [salonForm, setSalonForm] = useState<Partial<SalonData>>({});
   const [salonSaving, setSalonSaving] = useState(false);
   const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string; is_closed: boolean }>>({});
-  const [galleryImagesText, setGalleryImagesText] = useState("");
+  const [galleryImage1, setGalleryImage1] = useState("");
+  const [galleryImage2, setGalleryImage2] = useState("");
+  const [galleryImage3, setGalleryImage3] = useState("");
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [locationCoords, setLocationCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -205,7 +207,11 @@ export default function SalonOwnerDashboard() {
         setSalonData(data.salon);
         setSalonForm(data.salon);
         setWorkingHours(data.salon.working_hours ?? {});
-        setGalleryImagesText((data.salon.gallery_images ?? []).join("\n"));
+        // Set individual gallery images
+        const gallery = data.salon.gallery_images ?? [];
+        setGalleryImage1(gallery[0] ?? "");
+        setGalleryImage2(gallery[1] ?? "");
+        setGalleryImage3(gallery[2] ?? "");
         if (data.salon.lat && data.salon.lng) {
           setLocationCoords({ lat: data.salon.lat, lng: data.salon.lng });
         }
@@ -416,8 +422,8 @@ export default function SalonOwnerDashboard() {
   const handleSaveSalon = async () => {
     setSalonSaving(true);
     try {
-      const gallery = galleryImagesText
-        .split("\n")
+      // Combine the 3 separate image URLs into an array
+      const gallery = [galleryImage1, galleryImage2, galleryImage3]
         .map(s => s.trim())
         .filter(Boolean)
         .slice(0, planInfo.photos);
@@ -437,7 +443,11 @@ export default function SalonOwnerDashboard() {
       if (!res.ok) throw new Error(data.error);
       setSalonData(data.salon);
       setSalonForm(data.salon);
-      setGalleryImagesText((data.salon.gallery_images ?? []).join("\n"));
+      // Update individual gallery images from saved data
+      const savedGallery = data.salon.gallery_images ?? [];
+      setGalleryImage1(savedGallery[0] ?? "");
+      setGalleryImage2(savedGallery[1] ?? "");
+      setGalleryImage3(savedGallery[2] ?? "");
       toast.success("Salon info saved! ✅");
     } catch (err: any) { toast.error(err.message); }
     finally { setSalonSaving(false); }
@@ -782,7 +792,12 @@ export default function SalonOwnerDashboard() {
                         <LocationPicker
                           initialLocation={locationCoords && salonForm.address ? { address: salonForm.address, lat: locationCoords.lat, lng: locationCoords.lng } : undefined}
                           onLocationSelect={(location) => {
-                            setSalonForm(p => ({ ...p, address: location.address }));
+                            setSalonForm(p => ({ 
+                              ...p, 
+                              address: location.address,
+                              area: location.area || p.area, // Auto-fill area if available
+                              pincode: location.pincode || p.pincode // Auto-fill pincode if available
+                            }));
                             setLocationCoords({ lat: location.lat, lng: location.lng });
                           }}
                         />
@@ -790,11 +805,15 @@ export default function SalonOwnerDashboard() {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs text-white/50 mb-1.5">Area</label>
+                          <label className="block text-xs text-white/50 mb-1.5">
+                            Area {salonForm.area && <span className="text-emerald-400 text-[10px]">✓</span>}
+                          </label>
                           <Input value={salonForm.area ?? ""} onChange={e => setSalonForm(p => ({ ...p, area: e.target.value }))} placeholder="e.g. Bandra West" />
                         </div>
                         <div>
-                          <label className="block text-xs text-white/50 mb-1.5">Pincode</label>
+                          <label className="block text-xs text-white/50 mb-1.5">
+                            Pincode {salonForm.pincode && <span className="text-emerald-400 text-[10px]">✓</span>}
+                          </label>
                           <Input value={salonForm.pincode ?? ""} onChange={e => setSalonForm(p => ({ ...p, pincode: e.target.value }))} placeholder="400050" />
                         </div>
                         <div>
@@ -824,10 +843,48 @@ export default function SalonOwnerDashboard() {
                         <Input value={salonForm.cover_image ?? ""} onChange={e => setSalonForm(p => ({ ...p, cover_image: e.target.value }))} placeholder="https://..." />
                         {salonForm.cover_image && <img src={salonForm.cover_image} alt="Cover" className="mt-2 h-24 w-full object-cover rounded-xl" onError={e => (e.currentTarget.style.display = "none")} />}
                       </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1.5">Gallery Image URLs (one per line, max {planInfo.photos})</label>
-                        <textarea rows={4} value={galleryImagesText} onChange={e => setGalleryImagesText(e.target.value)} placeholder="https://image1.jpg&#10;https://image2.jpg&#10;https://image3.jpg" className="w-full bg-white/5 border border-purple-500/20 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-purple-500/50 transition-colors placeholder:text-white/30 resize-none font-mono" />
-                        <p className="text-xs text-white/30 mt-1">{galleryImagesText.split("\n").filter(Boolean).length}/{planInfo.photos} photos used</p>
+                      
+                      {/* Gallery Images - 3 separate inputs */}
+                      <div className="space-y-3">
+                        <label className="block text-xs text-white/50">Gallery Images (max {planInfo.photos})</label>
+                        
+                        <div>
+                          <label className="block text-xs text-white/30 mb-1">Gallery Image 1</label>
+                          <Input 
+                            value={galleryImage1} 
+                            onChange={e => setGalleryImage1(e.target.value)} 
+                            placeholder="https://image1.jpg" 
+                          />
+                          {galleryImage1 && <img src={galleryImage1} alt="Gallery 1" className="mt-2 h-20 w-full object-cover rounded-lg" onError={e => (e.currentTarget.style.display = "none")} />}
+                        </div>
+
+                        {planInfo.photos >= 2 && (
+                          <div>
+                            <label className="block text-xs text-white/30 mb-1">Gallery Image 2</label>
+                            <Input 
+                              value={galleryImage2} 
+                              onChange={e => setGalleryImage2(e.target.value)} 
+                              placeholder="https://image2.jpg" 
+                            />
+                            {galleryImage2 && <img src={galleryImage2} alt="Gallery 2" className="mt-2 h-20 w-full object-cover rounded-lg" onError={e => (e.currentTarget.style.display = "none")} />}
+                          </div>
+                        )}
+
+                        {planInfo.photos >= 3 && (
+                          <div>
+                            <label className="block text-xs text-white/30 mb-1">Gallery Image 3</label>
+                            <Input 
+                              value={galleryImage3} 
+                              onChange={e => setGalleryImage3(e.target.value)} 
+                              placeholder="https://image3.jpg" 
+                            />
+                            {galleryImage3 && <img src={galleryImage3} alt="Gallery 3" className="mt-2 h-20 w-full object-cover rounded-lg" onError={e => (e.currentTarget.style.display = "none")} />}
+                          </div>
+                        )}
+
+                        <p className="text-xs text-white/30">
+                          {[galleryImage1, galleryImage2, galleryImage3].filter(Boolean).length}/{planInfo.photos} photos used
+                        </p>
                       </div>
                     </div>
 

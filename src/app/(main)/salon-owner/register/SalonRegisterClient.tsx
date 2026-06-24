@@ -293,7 +293,12 @@ export default function SalonRegisterClient() {
                 <label className="block text-xs text-white/50 mb-1.5">Salon Location *</label>
                 <LocationPicker
                   onLocationSelect={(location) => {
-                    setForm(prev => ({ ...prev, address: location.address }));
+                    setForm(prev => ({ 
+                      ...prev, 
+                      address: location.address,
+                      area: location.area || prev.area, // Auto-fill area if available
+                      pincode: location.pincode || prev.pincode // Auto-fill pincode if available
+                    }));
                     setLocationCoords({ lat: location.lat, lng: location.lng });
                   }}
                 />
@@ -301,7 +306,9 @@ export default function SalonRegisterClient() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5">Area *</label>
+                  <label className="block text-xs text-white/50 mb-1.5">
+                    Area * {form.area && <span className="text-emerald-400 text-[10px]">✓ Auto-detected</span>}
+                  </label>
                   <select value={form.area} onChange={e => update("area", e.target.value)}
                     className="w-full appearance-none bg-white/5 border border-purple-500/20 text-white text-sm rounded-xl px-3 py-2.5 outline-none focus:border-purple-500/50"
                     aria-label="Select area">
@@ -310,7 +317,9 @@ export default function SalonRegisterClient() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-white/50 mb-1.5">Pincode *</label>
+                  <label className="block text-xs text-white/50 mb-1.5">
+                    Pincode * {form.pincode && <span className="text-emerald-400 text-[10px]">✓ Auto-detected</span>}
+                  </label>
                   <Input placeholder="400050" value={form.pincode} onChange={e => update("pincode", e.target.value)} />
                 </div>
               </div>

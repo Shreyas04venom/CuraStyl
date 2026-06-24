@@ -69,18 +69,28 @@ export function useNotifications() {
         .limit(20);
       
       if (error) {
-        console.error("Error fetching notifications:", error);
-        // Table might not exist yet
-        if (!store.isLoaded) {
-          store.setNotifications([], 0);
+        // Silently handle errors - table might not exist yet or user doesn't have access
+        if (error.code === 'PGRST116' || error.message?.includes('does not exist')) {
+          // Table doesn't exist - this is okay during development
+          if (!store.isLoaded) {
+            store.setNotifications([], 0);
+          }
+        } else {
+          // Log other errors for debugging
+          console.warn("Notification fetch error:", error.message || error);
+          if (!store.isLoaded) {
+            store.setNotifications([], 0);
+          }
         }
       } else if (data) {
         const unreadCount = data.filter((n: any) => !n.is_read).length;
         store.setNotifications(data as Notification[], unreadCount);
       }
-    } catch (err) {
-      console.error("Notifications fetch exception:", err);
-      // Table might not exist yet
+    } catch (err: any) {
+      // Silently handle exceptions - don't spam the console
+      if (err?.message && !err.message.includes('does not exist')) {
+        console.warn("Notifications unavailable:", err.message);
+      }
       if (!store.isLoaded) {
         store.setNotifications([], 0);
       }
@@ -120,8 +130,10 @@ export function useNotifications() {
         .update({ is_read: true })
         .eq("id", notificationId)
         .eq("user_id", profile.id);
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
+    } catch (error: any) {
+      if (error?.message && !error.message.includes('does not exist')) {
+        console.warn("Could not mark notification as read:", error.message);
+      }
     }
   }, [profile?.id, supabase, store]);
 
@@ -136,8 +148,10 @@ export function useNotifications() {
         .update({ is_read: true })
         .eq("user_id", profile.id)
         .eq("is_read", false);
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
+    } catch (error: any) {
+      if (error?.message && !error.message.includes('does not exist')) {
+        console.warn("Could not mark all notifications as read:", error.message);
+      }
     }
   }, [profile?.id, supabase, store]);
 
